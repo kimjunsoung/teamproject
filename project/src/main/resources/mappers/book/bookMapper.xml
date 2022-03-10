@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 다른 mapper와 중복되지 않도록 네임스페이스 기재 -->
+<mapper namespace="book"> 
+<!-- 도서 개수 count -->
+ <select id="countArticle" resultType="int">
+  select count(*)
+  from book
+  <choose>
+	<when test="search_option != 'all' ">
+	where  ${search_option} like #{keyword}
+	</when>
+	<otherwise>
+	where (book_name like #{keyword} 
+	or book_author like #{keyword}
+	or book_publisher like #{keyword})
+	</otherwise>
+  	</choose>
+  	<if test="checklist.length!=0">
+     and book_genre in <foreach item="check" index="index" collection="checklist" open="(" separator="," close=")" >
+     #{check}
+     </foreach>
+     </if>
+ </select>
+ 
+ <!-- 도서목록 -->
+  <select id="listAll" resultType="com.example.project.model.book.dto.bookDTO">
+ select *
+  from (
+    select rownum as rn, A.* 
+    from(
+		  select book_id,book_name,book_img,book_genre,book_content,
+		  book_publisher,book_author,book_counter,book_check
+		  from book
+		  <choose>
+		   <when test="search_option != 'all' ">
+		    where  ${search_option} like #{keyword}
+		   </when>
+		   <otherwise>
+		    where (book_name like #{keyword} 
+		       or book_author like #{keyword}
+		       or book_publisher like #{keyword})
+		   </otherwise>
+  			</choose>
+  			<if test="checklist.length!=0">
+         	and book_genre in <foreach item="check" index="index" collection="checklist" open="(" separator="," close=")" >
+         	#{check}
+         	</foreach>
+        	</if>
+  			 ) A
+  ) where rn between #{start} and #{end}
+ </select>
+ 
+ <!-- 도서목록 검색 -->
+ <sql id="search">
+  <choose>
+   <when test="search_option != 'all' ">
+    where  ${search_option} like #{keyword}
+   </when>
+   <otherwise>
+    where (book_name like #{keyword} 
+       or book_author like #{keyword}
+       or book_publisher like #{keyword})
+   </otherwise>
+  </choose>
+ </sql>
+ 
+  <sql id="paging_footer">
+    ) A
+  ) where rn between #{start} and #{end}
+ </sql>
+ 
+ <!-- 도서 상세보기 -->
+  <select id="read" 
+ resultType="com.example.project.model.book.dto.bookDTO">
+select book_id,book_name,book_img,book_genre,book_content,
+		  book_publisher,book_author,book_counter,book_check,book_callName,(select r.bday from book b,rent r
+  where b.book_id=r.book_id and b.book_id=#{book_id} and r.rent_check=1 ) as bday
+  from book
+  where book_id=#{book_id}
+ </select>
+ 
+ <!-- 체크박스 누름 -->
+<!--   <select id="check" resultType="com.example.project.model.book.dto.bookDTO" > 
+  select book_id,book_name,book_img,book_genre,book_content,
+		  book_publisher,book_author,book_counter,book_check
+   from book
+   where
+        <if test="checklist!=null">
+         book_genre in <foreach item="check" index="index" collection="checklist" open="(" separator="," close=")" >
+         #{check}
+         </foreach>
+        </if>
+</select> -->
+
+<!-- 인기순 정렬 검색 -->
+  <select id="popularity_listAll" resultType="com.example.project.model.book.dto.bookDTO">
+ select *
+  from (
+    select rownum as rn, A.* 
+    from(
+		  select book_id,book_name,book_img,book_genre,book_content,
+		  book_publisher,book_author,book_counter,book_check
+		  from book
+  			<if test="checklist.length!=0">
+         	where book_genre in <foreach item="check" index="index" collection="checklist" open="(" separator="," close=")" >
+         	#{check}
+         	</foreach>
+        	</if>
+          order by book_counter desc	
+  			 ) A
+  ) <![CDATA[where rownum<=100]]> 
+ </select>
+ 
+ <!-- 도서추가 -->
+ <insert id="book_insert">
+ insert into book(book_id,book_name,book_img,book_genre,book_content,book_publisher,book_author,book_callName) 
+ values(BOOK_SEQ.nextval,#{book_name},#{book_img},#{book_genre},#{book_content, jdbcType=VARCHAR},#{book_publisher, jdbcType=VARCHAR},#{book_author, jdbcType=VARCHAR},#{book_callName})
+ </insert>
+ 
+ <!--도서수정  -->
+ <update id="book_update">
+  update book set 
+  book_name=#{book_name},
+  book_img=#{book_img},
+  book_genre=#{book_genre},
+  book_content=#{book_content},
+  book_publisher=#{book_publisher},
+  book_author=#{book_author},
+  book_check=#{book_check}
+  where book_id=#{book_id}
+ </update>
+ 
+ <!-- 도서삭제 -->
+ <delete id="book_delete">
+ delete from book
+ where book_id=#{book_id}
+ </delete>
+ 
+ <!-- 랜덤 도서추천 -->
+<select id="random_recommend" resultType="com.example.project.model.book.dto.bookDTO">
+select book_id,book_name,book_img,book_genre,book_content,
+		  book_publisher,book_author from  (
+select * from book
+where book_id not in(
+    select book_id from rent
+    where userid=#{userid, jdbcType=VARCHAR}
+)
+order by dbms_random.value)
+<![CDATA[where rownum<=5]]>
+</select>
+
+<!-- 다른사람의 도서추천 -->
+<select id="other_recommend" resultType="String">
+select book_id
+from rent
+group by book_id
+having book_id not in (select book_id from rent where userid=#{userid, jdbcType=VARCHAR})
+order by count(*) desc
+</select>
+
+<select id="other_recommend2" resultType="com.example.project.model.book.dto.bookDTO">
+select book_id,book_name,book_img,book_genre,book_content,
+		  book_publisher,book_author from book 
+<if test="list.size!=0">
+     where book_id in <foreach item="arr" index="index" collection="list" open="(" separator="," close=")" >
+     #{arr}
+     </foreach>
+</if>
+and <![CDATA[ rownum<=5]]>
+</select>
+
+<!-- index페이지 -->
+<select id="book_index" resultType="com.example.project.model.book.dto.bookDTO">
+select book_id,book_name,book_img,book_genre
+from book 
+where <![CDATA[ rownum<=5]]>
+order by book_id desc
+</select>
+
+<!-- 대출횟수증가와 대출중처리 -->
+<update id="book_increase">
+update book set book_counter=book_counter+1,book_check=1
+where book_id=#{book_id}
+</update>
+
+<!-- 반납중처리 -->
+<update id="update">
+update book set book_check=0
+where book_id=(
+select book_id
+from rent
+where bnum=#{bnum}
+)
+</update>
+
+<!-- 청구기호 중복체크 -->
+<select id="check_callName" resultType="String">
+select book_callName
+from book
+where book_callName=#{callName}
+</select>
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

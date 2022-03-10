@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="join">
+	<select id="joinList" resultType="joinDTO">
+		select ej_num, max(ej_people) ej_join_p 
+		from event_join 
+		group by ej_num
+		order by ej_num
+	</select>
+	
+	<insert id="joinInsert">
+		insert into event_join (ej_num, ej_userid, ej_people) 
+		values (#{ej_num}, #{ej_userid}
+		, (select nvl(max(ej_people)+1,1) from event_join where ej_num=#{ej_num}) )
+	</insert>
+	
+	<select id="joinMember" resultType="com.example.project.model.member.DTO.MemberDTO">
+		select m.* 
+		from member m, event_join ej 
+		where ej.ej_userid=m.userid 
+		and ej_num=#{ej_num}
+	</select>
+</mapper>

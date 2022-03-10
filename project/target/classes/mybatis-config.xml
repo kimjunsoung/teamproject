@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+	<typeAliases>
+		<typeAlias type="com.example.project.model.event.dto.EventDTO" alias="eventDTO"/>
+		<typeAlias type="com.example.project.model.event.dto.ReplyDTO" alias="replyDTO"/>
+		<typeAlias type="com.example.project.model.event.dto.JoinDTO" alias="joinDTO"/>
+	</typeAliases>
+
+</configuration>

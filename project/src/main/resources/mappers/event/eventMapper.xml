@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="event">
+	<sql id="pagerHeader">
+		select * 
+		from (
+			select rownum as rn, E.*
+			from (
+	</sql>
+	
+	<sql id="pagerFooter">
+			) E
+		) where rn between #{start} and #{end}
+	</sql>
+	
+	<sql id="search">
+		and
+		<choose>
+			<when test="search_option != 'all'">
+				${search_option} like #{keyword}
+			</when>
+			<otherwise>
+				(e_name like #{keyword}
+				or e_agency like #{keyword}
+				or e_place like #{keyword})
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="listForAdmin">
+		<if test="list_option != 'all' or past == 'on'">where</if>
+		<if test="list_option != 'all'">
+			e_result=
+			<if test="list_option == 'waiting'">0</if>
+			<if test="list_option == 'approve'">1</if>
+			<if test="list_option == 'reject'">2</if>
+			<if test="list_option == 'cancel'">3</if>
+		</if>
+		<if test="list_option != 'all' and past == 'on'">and</if>
+		<if test="past == 'on'">
+			e_finish_d > sysdate 
+		</if>
+	</sql>
+	
+	<select id="countEvent" resultType="int">
+		select count(*) from event
+		where e_finish_d > sysdate
+		and e_result=1
+		<include refid="search"/>
+	</select>
+	
+	<select id="eventList" resultType="eventDTO"> 
+		<include refid="pagerHeader"/>
+		select e_num, e_agency, e_instr, e_name, e_start_d, e_finish_d, e_place, e_read_cnt, e_result 
+		from event
+		where e_finish_d > sysdate 
+		and e_result=1
+		<include refid="search"/>
+		<include refid="pagerFooter"/>
+		order by e_finish_d
+	</select>
+	
+	<update id="updateEReadCount">
+		update event
+		set e_read_cnt=e_read_cnt+1
+		where e_num=#{e_num}
+	</update>
+	
+	<select id="eventViewDetail" resultType="eventDTO">
+		select e_num, e_email, e_agency, e_instr, e_name, e_intro
+		, e_start_d, e_start_t, e_finish_d, e_place, e_read_cnt
+		, e_result, e_max_p, e_genre
+		, (select max(ej_people) from event_join where ej_num=#{e_num}) e_join_p
+		, (select count(*) from event_reply where er_e_num=#{e_num}) e_reply_cnt
+		from event
+		where e_num=#{e_num}
+	</select>
+	
+	<insert id="insert">
+		insert into event(e_num, e_email, e_agency, e_instr, e_name, e_intro, e_start_d, e_start_t, e_finish_d, e_place, e_max_p, e_genre)
+		values (event_seq.nextval, #{e_email}, #{e_agency}, #{e_instr}, #{e_name}, #{e_intro}, #{e_start_d}, #{e_start_t}, #{e_finish_d}, #{e_place}, #{e_max_p}, #{e_genre})
+	</insert>
+	
+	<select id="countEventForAdmin" resultType="int">
+		select count(*) from event
+		<include refid="listForAdmin"/>
+	</select>
+	
+	<select id="eventListForAdmin" resultType="eventDTO"> 
+		<include refid="pagerHeader"/>
+		select e_num, e_agency, e_name, e_result 
+		from event
+		<include refid="listForAdmin"/>
+		order by e_num
+		<include refid="pagerFooter"/>
+	</select>
+	
+	<update id="result">
+		update event
+		set e_result=#{e_result}
+		where e_num=#{e_num}
+	</update>
+	
+	<select id="checkEmail" resultType="int">
+		select count(*) from event
+		where e_email=#{email}
+	</select>
+	
+	<select id="eventApplyList" resultType="eventDTO">
+		select e_num, e_name, e_agency, e_result from event
+		where e_email=#{e_email}
+		order by e_num
+	</select>
+	
+	<update id="update">
+		update event 
+		set 
+		e_email=#{e_email}, e_agency=#{e_agency}, e_instr=#{e_instr}, 
+		e_name=#{e_name}, e_intro=#{e_intro}, e_start_d=#{e_start_d}, 
+		e_start_t=#{e_start_t}, e_finish_d=#{e_finish_d}, 
+		e_place=#{e_place}, e_max_p=#{e_max_p}, e_genre=#{e_genre},
+        e_result=0 
+        where e_num=#{e_num}
+	</update>
+	
+	<update id="cancel">
+		update event
+		set e_result=3
+		where e_num=#{e_num}
+	</update>
+	
+	<delete id="delete">
+		delete from event
+		where e_num=#{e_num}
+	</delete>
+	
+	<select id="countEventJoin" resultType="int">
+	 	select count(*) from event
+	 	where e_result=1
+	</select>
+	
+	<select id="eventJoinList" resultType="eventDTO">
+		<include refid="pagerHeader"/>
+		select e_num, e_name, e_instr, e_max_p, e_genre, e_finish_d
+		from event
+		where e_finish_d > sysdate 
+		and e_result=1
+		<include refid="pagerFooter"/>
+		order by e_finish_d
+	</select>
+	
+	<select id="listALL" resultType="eventDTO">
+		select * from event
+		where e_result=1
+		order by e_num
+	</select>
+</mapper>
